@@ -9,13 +9,21 @@ Parameters:
     Type: String
     Description: GitHub User
     Default: "ethanbergstrom"
-  GitHubRepo:
+  SiteGitHubRepo:
     Type: String
-    Description: GitHub Repo to pull from. Only the Name. not the URL
+    Description: Site GitHub Repo to pull from. Only the Name. not the URL
     Default: "website"
-  GitHubBranch:
+  SiteGitHubBranch:
     Type: String
-    Description: GitHub Branch
+    Description: Site GitHub Branch
+    Default: "master"
+  EnviroGitHubRepo:
+    Type: String
+    Description: Enviro GitHub Repo to pull from. Only the Name. not the URL
+    Default: "website"
+  EnviroGitHubBranch:
+    Type: String
+    Description: Enviro GitHub Branch
     Default: "master"
   GitHubToken:
     NoEcho: true
@@ -45,8 +53,10 @@ Metadata:
         Parameters:
           - GitHubToken
           - GitHubUser
-          - GitHubRepo
-          - GitHubBranch
+          - SiteGitHubRepo
+          - SiteGitHubBranch
+          - EnviroGitHubRepo
+          - EnviroGitHubBranch
       - Label:
           default: "Build Configuration"
         Parameters:
@@ -60,10 +70,14 @@ Metadata:
         default: GitHub OAuth2 Token
       GitHubUser: 
         default: GitHub User/Org Name
-      GitHubRepo: 
-        default: GitHub Repository Name
-      GitHubBranch: 
-        default: GitHub Branch Name
+      SiteGitHubRepo: 
+        default: Site GitHub Repository Name
+      SiteGitHubBranch: 
+        default: Site GitHub Branch Name
+      EnviroGitHubRepo: 
+        default: Enviro GitHub Repository Name
+      EnviroGitHubBranch: 
+        default: Enviro GitHub Branch Name
       BuildType: 
         default: CodeBuild type
       BuildComputeType: 
@@ -137,6 +151,9 @@ Resources:
       BucketName: !Ref SiteBucketName
       WebsiteConfiguration:
         IndexDocument: index.html
+  EnviroBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
   PipelineBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
@@ -166,6 +183,34 @@ Resources:
             files:
               - ./html/index.html
       TimeoutInMinutes: 10
+  CodeBuildEnviroSandbox:
+    Type: AWS::CodeBuild::Project
+    DependsOn: CodeBuildRole
+    Properties:
+      Name: !Sub ${AWS::StackName}-EnviroSandbox
+      Description: Deploy Enviro to Sandbox
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: !Ref BuildType
+        ComputeType: !Ref BuildComputeType
+        Image: !Sub ${BuildImage}
+        EnvironmentVariables:
+          - SDB_DOMAIN: enviroSandbox
+          - SDB_REGION: !Ref "AWS::Region"
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: !Sub |
+          version: 0.2
+          phases:
+            post_build:
+              commands:
+                - sam package --template-file template.yaml --s3-bucket ${EnviroBucket.Arn} --output-tempate-file packaged.yaml
+                - sam deploy --template-file packaged.yaml --stack-name ${AWS::StackName} --capabilities CAPABILITY_IAM
+          artifacts:
+            type: zip
+      TimeoutInMinutes: 10
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -184,8 +229,8 @@ Resources:
           - Name: SourceOutput
           Configuration:
             Owner: !Ref GitHubUser
-            Repo: !Ref GitHubRepo
-            Branch: !Ref GitHubBranch
+            Repo: !Ref SiteGitHubRepo
+            Branch: !Ref SiteGitHubBranch
             OAuthToken: !Ref GitHubToken
           RunOrder: 1
       - Name: Deploy
