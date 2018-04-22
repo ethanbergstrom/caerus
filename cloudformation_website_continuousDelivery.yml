@@ -20,7 +20,7 @@ Parameters:
   EnviroGitHubRepo:
     Type: String
     Description: Enviro GitHub Repo to pull from. Only the Name. not the URL
-    Default: "website"
+    Default: "enviro"
   EnviroGitHubBranch:
     Type: String
     Description: Enviro GitHub Branch
@@ -159,26 +159,22 @@ Resources:
       WebsiteConfiguration:
         RedirectAllRequestsTo:
           HostName: !Ref SiteBucket
-  DNS:
-    Type: AWS::Route53::RecordSetGroup
+  DNSZone:
+    Type: AWS::Route53::HostedZone
     Properties:
-      HosteZoneName: !Sub ${RootDomainName}
-      Comment: Zone apex alias
-      RecordSets:
-      - 
-        Name: !Ref RootDomainName
-        Type: A
-        AliasTarget:
-          HostedZoneId: !FindInMap [ RegionMap, !Ref 'AWS::Region', S3hostedzoneID]
-          DNSName: !FindInMap [ RegionMap, !Ref 'AWS::Region', websiteendpoint]
-      -
-        Name: !Sub
-            - www.${Domain}
-            - Domain: !Ref RootDomainName
-        Type: CNAME
-        TTL: 900
-        ResourceRecords:
-        - !GetAtt WWWBucket.DomainName        
+      Name: !Ref RootDomainName
+  ApexRecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HosteZoneName: !Ref RootDomainName
+      Comment: Zone apex
+  WWWRecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Sub "www.${RootDomainName}"
+      Type: CNAME
+      ResourceRecords:
+      - !GetAtt WWWBucket.DomainName        
   EnviroBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
