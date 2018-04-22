@@ -158,9 +158,9 @@ Resources:
       AccessControl: BucketOwnerFullControl
       WebsiteConfiguration:
         RedirectAllRequestsTo:
-          HostName: !Ref RootBucket
+          HostName: !Ref SiteBucket
   DNS:
-    Type: AWS:Route53:RecordSetGroup
+    Type: AWS::Route53::RecordSetGroup
     Properties:
       HosteZoneName: !Sub ${RootDomainName}
       Comment: Zone apex alias
@@ -205,7 +205,7 @@ Resources:
           phases:
             post_build:
               commands:
-                - aws s3 cp --recursive --acl public-read ./ s3://${SiteBucketName}/ 
+                - aws s3 cp --recursive --acl public-read ./ s3://${RootDomainName}/ 
       TimeoutInMinutes: 10
   CodeBuildEnviroSandbox:
     Type: AWS::CodeBuild::Project
