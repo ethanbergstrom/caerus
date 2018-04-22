@@ -205,11 +205,7 @@ Resources:
           phases:
             post_build:
               commands:
-                - aws s3 cp --recursive --acl public-read ./html s3://${SiteBucketName}/ 
-          artifacts:
-            type: zip
-            files:
-              - ./html/index.html
+                - aws s3 cp --recursive --acl public-read ./ s3://${SiteBucketName}/ 
       TimeoutInMinutes: 10
   CodeBuildEnviroSandbox:
     Type: AWS::CodeBuild::Project
@@ -236,8 +232,6 @@ Resources:
               commands:
                 - sam package --template-file template.yaml --s3-bucket ${EnviroBucket.Arn} --output-tempate-file packaged.yaml
                 - sam deploy --template-file packaged.yaml --stack-name ${AWS::StackName} --capabilities CAPABILITY_IAM
-          artifacts:
-            type: zip
       TimeoutInMinutes: 10
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
