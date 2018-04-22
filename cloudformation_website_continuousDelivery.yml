@@ -2,9 +2,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Pipeline using CodePipeline and CodeBuild for continuous delivery of a single-page application to S3
 Parameters:
-  SiteBucketName:
+  RootDomainName:
     Type: String
-    Description: Name of bucket to create to host the website
+    Description: Domain name for your website (example.com)
   GitHubUser:
     Type: String
     Description: GitHub User
@@ -47,7 +47,7 @@ Metadata:
       - Label:
           default: "Site Configuration"
         Parameters:
-          - SiteBucketName
+          - RootDomainName
       - Label:
           default: "GitHub Configuration"
         Parameters:
@@ -64,8 +64,8 @@ Metadata:
           - BuildComputeType
           - BuildImage
     ParameterLabels:
-      SiteBucketName:
-        default: Name of S3 Bucket to create for website hosting
+      RootDomainName:
+        default: Domain name for your website (example.com)
       GitHubToken:
         default: GitHub OAuth2 Token
       GitHubUser: 
@@ -147,10 +147,38 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
+      BucketName: !Ref RootDomainName
       AccessControl: PublicRead
-      BucketName: !Ref SiteBucketName
       WebsiteConfiguration:
         IndexDocument: index.html
+  WWWBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub www.${RootDomainName}
+      AccessControl: BucketOwnerFullControl
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref RootBucket
+  DNS:
+    Type: AWS:Route53:RecordSetGroup
+    Properties:
+      HosteZoneName: !Sub ${RootDomainName}
+      Comment: Zone apex alias
+      RecordSets:
+      - 
+        Name: !Ref RootDomainName
+        Type: A
+        AliasTarget:
+          HostedZoneId: !FindInMap [ RegionMap, !Ref 'AWS::Region', S3hostedzoneID]
+          DNSName: !FindInMap [ RegionMap, !Ref 'AWS::Region', websiteendpoint]
+      -
+        Name: !Sub
+            - www.${Domain}
+            - Domain: !Ref RootDomainName
+        Type: CNAME
+        TTL: 900
+        ResourceRecords:
+        - !GetAtt WWWBucket.DomainName        
   EnviroBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
@@ -219,35 +247,63 @@ Resources:
       - Name: Source
         Actions:
         - InputArtifacts: []
-          Name: Source
+          Name: Site Source
           ActionTypeId:
             Category: Source
             Owner: ThirdParty
             Version: '1'
             Provider: GitHub
           OutputArtifacts:
-          - Name: SourceOutput
+          - Name: SiteSourceOutput
           Configuration:
             Owner: !Ref GitHubUser
             Repo: !Ref SiteGitHubRepo
             Branch: !Ref SiteGitHubBranch
             OAuthToken: !Ref GitHubToken
           RunOrder: 1
+        - InputArtifacts: []
+          Name: Enviro Source
+          ActionTypeId:
+            Category: Source
+            Owner: ThirdParty
+            Version: '1'
+            Provider: GitHub
+          OutputArtifacts:
+          - Name: EnviroSourceOutput
+          Configuration:
+            Owner: !Ref GitHubUser
+            Repo: !Ref EnviroGitHubRepo
+            Branch: !Ref EnviroGitHubBranch
+            OAuthToken: !Ref GitHubToken
+          RunOrder: 2
       - Name: Deploy
         Actions:
-        - Name: Artifact
+        - Name: SiteArtifact
           ActionTypeId:
             Category: Build
             Owner: AWS
             Version: '1'
             Provider: CodeBuild
           InputArtifacts:
-          - Name: SourceOutput
+          - Name: SiteSourceOutput
           OutputArtifacts:
-          - Name: DeployOutput
+          - Name: SiteDeployOutput
           Configuration:
             ProjectName: !Ref CodeBuildDeploySite
           RunOrder: 1
+        - Name: EnviroArtifact
+          ActionTypeId:
+            Category: Build
+            Owner: AWS
+            Version: '1'
+            Provider: CodeBuild
+          InputArtifacts:
+          - Name: EnviroSourceOutput
+          OutputArtifacts:
+          - Name: EnviroDeployOutput
+          Configuration:
+            ProjectName: !Ref CodeBuildEnviroSandbox
+          RunOrder: 2
       ArtifactStore:
         Type: S3
         Location: !Ref PipelineBucket
