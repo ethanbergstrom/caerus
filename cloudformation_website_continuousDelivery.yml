@@ -263,11 +263,6 @@ Resources:
         Type: !Ref BuildType
         ComputeType: !Ref BuildComputeType
         Image: !Sub ${EnviroBuildImage}
-        EnvironmentVariables:
-          - Name: SDB_DOMAIN
-            Value: enviroSandbox
-          - Name: SDB_REGION
-            Value: !Ref "AWS::Region"
       Source:
         Type: CODEPIPELINE
         BuildSpec: !Sub |
@@ -281,7 +276,7 @@ Resources:
             post_build:
               commands:
                 - echo Packaging and deploying SAM template to CloudFormation
-                - sam package --template-file template.yaml --s3-bucket ${EnviroBucket.Arn}  --output-template-file packaged.yaml
+                - sam package --template-file template.yaml --s3-bucket ${EnviroBucket}  --output-template-file packaged.yaml
                 - sam deploy --template-file packaged.yaml --stack-name ${AWS::StackName} --capabilities CAPABILITY_IAM
       TimeoutInMinutes: 10
   Pipeline:
