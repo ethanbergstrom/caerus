@@ -343,7 +343,7 @@ Resources:
           OutputArtifacts:
           - Name: EnviroDeployOutput
           Configuration:
-            ProjectName: !Ref CodeBuildEnviroSandbox
+            ProjectName: !Ref CodeBuildEnviro
           RunOrder: 1
       ArtifactStore:
         Type: S3
