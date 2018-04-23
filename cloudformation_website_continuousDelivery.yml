@@ -315,7 +315,7 @@ Resources:
             Repo: !Ref EnviroGitHubRepo
             Branch: !Ref EnviroGitHubBranch
             OAuthToken: !Ref GitHubToken
-          RunOrder: 2
+          RunOrder: 1
       - Name: Deploy
         Actions:
         - Name: SiteArtifact
@@ -343,7 +343,7 @@ Resources:
           - Name: EnviroDeployOutput
           Configuration:
             ProjectName: !Ref CodeBuildEnviroSandbox
-          RunOrder: 2
+          RunOrder: 1
       ArtifactStore:
         Type: S3
         Location: !Ref PipelineBucket
