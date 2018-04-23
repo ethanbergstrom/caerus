@@ -276,6 +276,7 @@ Resources:
             post_build:
               commands:
                 - echo Packaging and deploying SAM template to CloudFormation
+                - ls -l
                 - sam package --template-file template.yaml --s3-bucket ${EnviroBucket}  --output-template-file packaged.yaml
                 - cat packaged.yaml
                 - sam deploy --template-file packaged.yaml --stack-name ${AWS::StackName}-Enviro --capabilities CAPABILITY_IAM
