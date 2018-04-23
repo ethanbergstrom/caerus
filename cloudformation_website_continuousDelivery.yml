@@ -250,12 +250,12 @@ Resources:
               commands:
                 - aws s3 cp --recursive --acl public-read ./ s3://${RootDomainName}/ 
       TimeoutInMinutes: 10
-  CodeBuildEnviroSandbox:
+  CodeBuildEnviro:
     Type: AWS::CodeBuild::Project
     DependsOn: CodeBuildRole
     Properties:
-      Name: !Sub ${AWS::StackName}-EnviroSandbox
-      Description: Deploy Enviro to Sandbox
+      Name: !Sub ${AWS::StackName}-Enviro
+      Description: Deploy Enviro
       ServiceRole: !GetAtt CodeBuildRole.Arn
       Artifacts:
         Type: CODEPIPELINE
@@ -277,7 +277,8 @@ Resources:
               commands:
                 - echo Packaging and deploying SAM template to CloudFormation
                 - sam package --template-file template.yaml --s3-bucket ${EnviroBucket}  --output-template-file packaged.yaml
-                - sam deploy --template-file packaged.yaml --stack-name ${AWS::StackName} --capabilities CAPABILITY_IAM
+                - cat packaged.yaml
+                - sam deploy --template-file packaged.yaml --stack-name ${CodeBuildEnviro.Properties.Name} --capabilities CAPABILITY_IAM
       TimeoutInMinutes: 10
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
