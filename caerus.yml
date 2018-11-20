@@ -349,25 +349,22 @@ Resources:
       ArtifactStore:
         Type: S3
         Location: !Ref PipelineBucket
-  DeployGroup:
+  DynamicDNSGroup:
     Type: AWS::IAM::Group
     Properties:
-      ManagedPolicyArns:
-        - "arn:aws:iam::aws:policy/IAMFullAccess"
       Policies:
-      - PolicyName: !Sub ${AWS::StackName}-DeployGroup
+      - PolicyName: !Sub ${AWS::StackName}-DynamicDNS
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
           - Effect: Allow
-            Action: cloudformation:*
-            Resource: !Ref AWS::StackId
-  DeployUser:
+            Action: route53:*
+            Resource: !Ref DNSZone
+  DynamicDNSUser:
     Type: AWS::IAM::User
     Properties:
       Path: "/"
-      Group: !Ref DeployGroup
-Outputs:
+      Group: !Ref DynamicDNSGroup
   PipelineUrl:
     Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}
     Description: CodePipeline URL
