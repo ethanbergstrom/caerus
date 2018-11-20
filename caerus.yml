@@ -359,7 +359,7 @@ Resources:
           Statement:
           - Effect: Allow
             Action: route53:*
-            Resource: *
+            Resource: '*'
   DynamicDNSUser:
     Type: AWS::IAM::User
     Properties:
