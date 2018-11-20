@@ -94,9 +94,9 @@ Metadata:
         default: CodeBuild type
       BuildComputeType: 
         default: CodeBuild instance type
-      SiteBuildImage: 
+      BuildImage: 
         default: Site CodeBuild image
-      EnviroBuildImage: 
+      BuildImage: 
         default: Enviro CodeBuild image
 Mappings:
   RegionMap:
@@ -221,7 +221,7 @@ Resources:
       Type: CNAME
       TTL: !Ref TTL
       ResourceRecords: 
-      - !GetAtt WWWBucket.DomainName
+      - !GetAtt WWWBucket.DomainName        
   EnviroBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
@@ -349,23 +349,6 @@ Resources:
       ArtifactStore:
         Type: S3
         Location: !Ref PipelineBucket
-  DynamicDNSUser:
-    Type: AWS::IAM::User
-    Properties:
-      Username: r53DynamicUpdate
-      Path: "/"
-      Policies:
-      - PolicyName: route53-dynamic-update
-        PolicyDocument:
-          Statement:
-          - Effect: Allow
-            Action: "route53:ChangeResourceRecordSets"
-            Resource: !GetAtt DNSZone.Arn
-          Version: '2012-10-17'
-  DynamiCDNSAccessKey:
-    Type: AWS::IAM::AccessKey
-    Properties:
-      Username: !Ref DynamicDNSUser
 Outputs:
   PipelineUrl:
     Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}
@@ -373,6 +356,3 @@ Outputs:
   SiteUrl:
     Value: !GetAtt [SiteBucket, WebsiteURL]
     Description: S3 Website URL
-  DynamicDNSUserAccessKey:
-    Value: !GetAtt DynamiCDNSAccessKey.SecretAccessKey
-    Description: Route53 Dynamic DNS Update Access Key
