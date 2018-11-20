@@ -364,7 +364,8 @@ Resources:
     Type: AWS::IAM::User
     Properties:
       Path: "/"
-      Group: !Ref DynamicDNSGroup
+      Groups: 
+      - !Ref DynamicDNSGroup
 Outputs:
   PipelineUrl:
     Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}
