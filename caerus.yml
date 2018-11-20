@@ -352,6 +352,8 @@ Resources:
   DeployGroup:
     Type: AWS::IAM::Group
     Properties:
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/IAMFullAccess"
       Policies:
       - PolicyName: !Sub ${AWS::StackName}-DeployGroup
         PolicyDocument:
