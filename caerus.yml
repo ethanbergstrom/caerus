@@ -349,6 +349,22 @@ Resources:
       ArtifactStore:
         Type: S3
         Location: !Ref PipelineBucket
+  DeployGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      Policies:
+      - PolicyName: !Sub ${AWS::StackName}-DeployGroup
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: cloudformation:*
+            Resource: !Ref AWS::StackId
+  DeployUser:
+    Type: AWS::IAM::User
+    Properties:
+      Path: "/"
+      Group: !Ref DeployGroup
 Outputs:
   PipelineUrl:
     Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}
