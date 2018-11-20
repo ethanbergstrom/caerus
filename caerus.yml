@@ -359,7 +359,7 @@ Resources:
           Statement:
           - Effect: Allow
             Action: route53:*
-            Resource: !Ref DNSZone
+            Resource: !GetAtt DNSZone.Arn
   DynamicDNSUser:
     Type: AWS::IAM::User
     Properties:
