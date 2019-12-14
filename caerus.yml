@@ -13,42 +13,18 @@ Parameters:
     Type: String
     Description: GitHub User
     Default: "ethanbergstrom"
-  SiteGitHubRepo:
+  GitHubRepo:
     Type: String
     Description: Site GitHub Repo to pull from. Only the Name. not the URL
     Default: "website"
-  SiteGitHubBranch:
+  GitHubBranch:
     Type: String
     Description: Site GitHub Branch
-    Default: "master"
-  EnviroGitHubRepo:
-    Type: String
-    Description: Enviro GitHub Repo to pull from. Only the Name. not the URL
-    Default: "enviro"
-  EnviroGitHubBranch:
-    Type: String
-    Description: Enviro GitHub Branch
     Default: "master"
   GitHubToken:
     NoEcho: true
     Type: String
     Description: Secret. It might look something like 9b189a1654643522561f7b3ebd44a1531a4287af OAuthToken with access to Repo. Go to https://github.com/settings/tokens
-  BuildType:
-    Type: String
-    Default: "LINUX_CONTAINER"
-    Description: The build container type to use for building the app
-  BuildComputeType:
-    Type: String
-    Default: "BUILD_GENERAL1_SMALL"
-    Description: The build compute type to use for building the app
-  SiteBuildImage:
-    Type: String
-    Default: "aws/codebuild/ubuntu-base:14.04"
-    Description: The build image to use for building the site
-  EnviroBuildImage:
-    Type: String
-    Default: "aws/codebuild/nodejs:6.3.1"
-    Description: The build image to use for building the Node Lambda functions
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -62,17 +38,14 @@ Metadata:
         Parameters:
           - GitHubToken
           - GitHubUser
-          - SiteGitHubRepo
-          - SiteGitHubBranch
-          - EnviroGitHubRepo
-          - EnviroGitHubBranch
+          - GitHubRepo
+          - GitHubBranch
       - Label:
           default: "Build Configuration"
         Parameters:
           - BuildType
           - BuildComputeType
-          - SiteBuildImage
-          - EnviroBuildImage
+          - BuildImage
     ParameterLabels:
       RootDomainName:
         default: Domain name for your website (example.com)
@@ -80,24 +53,18 @@ Metadata:
         default: Domain TTL
       GitHubToken:
         default: GitHub OAuth2 Token
-      GitHubUser: 
+      GitHubUser:
         default: GitHub User/Org Name
-      SiteGitHubRepo: 
+      GitHubRepo:
         default: Site GitHub Repository Name
-      SiteGitHubBranch: 
+      GitHubBranch:
         default: Site GitHub Branch Name
-      EnviroGitHubRepo: 
-        default: Enviro GitHub Repository Name
-      EnviroGitHubBranch: 
-        default: Enviro GitHub Branch Name
-      BuildType: 
+      BuildType:
         default: CodeBuild type
-      BuildComputeType: 
+      BuildComputeType:
         default: CodeBuild instance type
-      BuildImage: 
+      BuildImage:
         default: Site CodeBuild image
-      BuildImage: 
-        default: Enviro CodeBuild image
 Mappings:
   RegionMap:
     us-east-1:
@@ -125,26 +92,51 @@ Mappings:
       S3hostedzoneID: Z31GFT0UA1I2HV
       websiteendpoint: s3-website-sa-east-1.amazonaws.com
 Resources:
-  CodeBuildRole:
-    Type: AWS::IAM::Role
+# Site Resources
+  SiteBucket:
+    Type: AWS::S3::Bucket
     Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - codebuild.amazonaws.com
-          Action:
-          - sts:AssumeRole
-      Path: "/"
-      Policies:
-      - PolicyName: codebuild-service
-        PolicyDocument:
-          Statement:
-          - Effect: Allow
-            Action: "*"
-            Resource: "*"
-          Version: '2012-10-17'
+      BucketName: !Ref RootDomainName
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: 404.html
+  WWWBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub www.${RootDomainName}
+      AccessControl: BucketOwnerFullControl
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref SiteBucket
+# DNS Resources
+  DNSZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref RootDomainName
+  ApexRecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Ref RootDomainName
+      HostedZoneId: !Ref DNSZone
+      Type: A
+      Comment: Zone apex
+      AliasTarget:
+        DNSName: !FindInMap [ RegionMap, !Ref 'AWS::Region', websiteendpoint]
+        HostedZoneId: !FindInMap [ RegionMap, !Ref 'AWS::Region', S3hostedzoneID]
+  WWWRecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Sub "www.${RootDomainName}"
+      HostedZoneId: !Ref DNSZone
+      Type: CNAME
+      TTL: !Ref TTL
+      ResourceRecords:
+      - !GetAtt WWWBucket.DomainName
+# Pipeline Resources
+  PipelineBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
   CodePipelineRole:
     Type: AWS::IAM::Role
     Properties:
@@ -183,190 +175,43 @@ Resources:
             Resource: "*"
             Effect: Allow
           Version: '2012-10-17'
-  SiteBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref RootDomainName
-      AccessControl: PublicRead
-      WebsiteConfiguration:
-        IndexDocument: index.html
-        ErrorDocument: 404.html
-  WWWBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub www.${RootDomainName}
-      AccessControl: BucketOwnerFullControl
-      WebsiteConfiguration:
-        RedirectAllRequestsTo:
-          HostName: !Ref SiteBucket
-  DNSZone:
-    Type: AWS::Route53::HostedZone
-    Properties:
-      Name: !Ref RootDomainName
-  ApexRecordSet:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      Name: !Ref RootDomainName
-      HostedZoneId: !Ref DNSZone
-      Type: A
-      Comment: Zone apex
-      AliasTarget:
-        DNSName: !FindInMap [ RegionMap, !Ref 'AWS::Region', websiteendpoint]
-        HostedZoneId: !FindInMap [ RegionMap, !Ref 'AWS::Region', S3hostedzoneID]
-  WWWRecordSet:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      Name: !Sub "www.${RootDomainName}"
-      HostedZoneId: !Ref DNSZone
-      Type: CNAME
-      TTL: !Ref TTL
-      ResourceRecords: 
-      - !GetAtt WWWBucket.DomainName        
-  EnviroBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Delete
-  PipelineBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Delete
-  CodeBuildDeploySite:
-    Type: AWS::CodeBuild::Project
-    DependsOn: CodeBuildRole
-    Properties:
-      Name: !Sub ${AWS::StackName}-DeploySite
-      Description: Deploy site to S3
-      ServiceRole: !GetAtt CodeBuildRole.Arn
-      Artifacts:
-        Type: CODEPIPELINE
-      Environment:
-        Type: !Ref BuildType
-        ComputeType: !Ref BuildComputeType
-        Image: !Sub ${SiteBuildImage}
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: !Sub |
-          version: 0.1
-          phases:
-            post_build:
-              commands:
-                - aws s3 cp --recursive --acl public-read ./ s3://${RootDomainName}/ 
-      TimeoutInMinutes: 10
-  CodeBuildEnviro:
-    Type: AWS::CodeBuild::Project
-    DependsOn: CodeBuildRole
-    Properties:
-      Name: !Sub ${AWS::StackName}-Enviro
-      Description: Deploy Enviro
-      ServiceRole: !GetAtt CodeBuildRole.Arn
-      Artifacts:
-        Type: CODEPIPELINE
-      Environment:
-        Type: !Ref BuildType
-        ComputeType: !Ref BuildComputeType
-        Image: !Sub ${EnviroBuildImage}
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: !Sub |
-          version: 0.2
-          phases:
-            install:
-              commands:
-                - echo Installing AWS SAM to run deployment commands
-                - curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-                - unzip awscli-bundle.zip
-                - sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
-            post_build:
-              commands:
-                - echo Packaging and deploying SAM template to CloudFormation
-                - ls -l
-                - sam package --template-file template.yaml --s3-bucket ${EnviroBucket}  --output-template-file packaged.yaml
-                - cat packaged.yaml
-                - sam deploy --template-file packaged.yaml --stack-name ${AWS::StackName}Enviro --capabilities CAPABILITY_IAM
-      TimeoutInMinutes: 10
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       RoleArn: !GetAtt CodePipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineBucket
       Stages:
       - Name: Source
         Actions:
-        - InputArtifacts: []
-          Name: SiteSource
+        - Name: SiteSource
           ActionTypeId:
             Category: Source
             Owner: ThirdParty
             Version: '1'
             Provider: GitHub
-          OutputArtifacts:
-          - Name: SiteSourceOutput
           Configuration:
             Owner: !Ref GitHubUser
-            Repo: !Ref SiteGitHubRepo
-            Branch: !Ref SiteGitHubBranch
+            Repo: !Ref GitHubRepo
+            Branch: !Ref GitHubBranch
             OAuthToken: !Ref GitHubToken
-          RunOrder: 1
-        - InputArtifacts: []
-          Name: EnviroSource
-          ActionTypeId:
-            Category: Source
-            Owner: ThirdParty
-            Version: '1'
-            Provider: GitHub
           OutputArtifacts:
-          - Name: EnviroSourceOutput
-          Configuration:
-            Owner: !Ref GitHubUser
-            Repo: !Ref EnviroGitHubRepo
-            Branch: !Ref EnviroGitHubBranch
-            OAuthToken: !Ref GitHubToken
-          RunOrder: 1
+          - Name: SourceOutput
       - Name: Deploy
         Actions:
         - Name: SiteArtifact
           ActionTypeId:
-            Category: Build
+            Category: Deploy
             Owner: AWS
             Version: '1'
-            Provider: CodeBuild
-          InputArtifacts:
-          - Name: SiteSourceOutput
-          OutputArtifacts:
-          - Name: SiteDeployOutput
+            Provider: S3
           Configuration:
-            ProjectName: !Ref CodeBuildDeploySite
-          RunOrder: 1
-        - Name: EnviroArtifact
-          ActionTypeId:
-            Category: Build
-            Owner: AWS
-            Version: '1'
-            Provider: CodeBuild
+            BucketName: !Ref SiteBucket
+            Extract: true
+            CannedACL: public-read
           InputArtifacts:
-          - Name: EnviroSourceOutput
-          OutputArtifacts:
-          - Name: EnviroDeployOutput
-          Configuration:
-            ProjectName: !Ref CodeBuildEnviro
-          RunOrder: 1
-      ArtifactStore:
-        Type: S3
-        Location: !Ref PipelineBucket
-  DynamicDNSGroup:
-    Type: AWS::IAM::Group
-    Properties:
-      Policies:
-      - PolicyName: !Sub ${AWS::StackName}-DynamicDNS
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action: route53:*
-            Resource: '*'
-  DynamicDNSUser:
-    Type: AWS::IAM::User
-    Properties:
-      Path: "/"
-      Groups: 
-      - !Ref DynamicDNSGroup
+          - Name: SourceOutput
 Outputs:
   PipelineUrl:
     Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}
