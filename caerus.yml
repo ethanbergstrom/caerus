@@ -40,12 +40,6 @@ Metadata:
           - GitHubUser
           - GitHubRepo
           - GitHubBranch
-      - Label:
-          default: "Build Configuration"
-        Parameters:
-          - BuildType
-          - BuildComputeType
-          - BuildImage
     ParameterLabels:
       RootDomainName:
         default: Domain name for your website (example.com)
@@ -59,12 +53,6 @@ Metadata:
         default: Site GitHub Repository Name
       GitHubBranch:
         default: Site GitHub Branch Name
-      BuildType:
-        default: CodeBuild type
-      BuildComputeType:
-        default: CodeBuild instance type
-      BuildImage:
-        default: Site CodeBuild image
 Mappings:
   RegionMap:
     us-east-1:
