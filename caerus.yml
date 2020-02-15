@@ -273,9 +273,8 @@ Resources:
                 - echo Installing dependencies
                 - npm install
                 - echo Installing AWS SAM to run deployment commands
-                - curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
-                - unzip awscli-bundle.zip
-                - sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
+                - npm config set unsafe-perm=true
+                - npm install -g aws-sam-local
             post_build:
               commands:
                 - echo Packaging and deploying SAM template to CloudFormation
