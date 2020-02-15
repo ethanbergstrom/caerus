@@ -47,8 +47,12 @@ Parameters:
     Description: The build image to use for building the site
   EnviroBuildImage:
     Type: String
-    Default: "aws/codebuild/nodejs:6.3.1"
+    Default: "aws/codebuild/amazonlinux2-aarch64-standard:1.0"
     Description: The build image to use for building the Node Lambda functions
+  EnviroBuildRuntimeVersion:
+    Type: String
+    Default: "10"
+    Description: Version of NodeJS installed to build Lambda function
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -73,6 +77,7 @@ Metadata:
           - BuildComputeType
           - SiteBuildImage
           - EnviroBuildImage
+          - EnviroBuildRuntimeVersion
     ParameterLabels:
       RootDomainName:
         default: Domain name for your website (example.com)
@@ -98,6 +103,8 @@ Metadata:
         default: Site CodeBuild image
       BuildImage:
         default: Enviro CodeBuild image
+      BuildImage:
+        default: Enviro CodeBuild runtime
 Mappings:
   RegionMap:
     us-east-1:
@@ -269,6 +276,8 @@ Resources:
           version: 0.2
           phases:
             install:
+              runtime-version:
+                nodejs: ${EnviroBuildRuntimeVersion}
               commands:
                 - echo Installing dependencies
                 - npm install
