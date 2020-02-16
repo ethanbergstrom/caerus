@@ -235,28 +235,6 @@ Resources:
   PipelineBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
-  CodeBuildDeploySite:
-    Type: AWS::CodeBuild::Project
-    DependsOn: CodeBuildRole
-    Properties:
-      Name: !Sub ${AWS::StackName}-DeploySite
-      Description: Deploy site to S3
-      ServiceRole: !GetAtt CodeBuildRole.Arn
-      Artifacts:
-        Type: CODEPIPELINE
-      Environment:
-        Type: !Ref BuildType
-        ComputeType: !Ref BuildComputeType
-        Image: !Sub ${SiteBuildImage}
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: !Sub |
-          version: 0.1
-          phases:
-            post_build:
-              commands:
-                - aws s3 cp --recursive --acl public-read ./ s3://${RootDomainName}/
-      TimeoutInMinutes: 10
   CodeBuildEnviro:
     Type: AWS::CodeBuild::Project
     DependsOn: CodeBuildRole
@@ -306,14 +284,13 @@ Resources:
             Owner: ThirdParty
             Version: '1'
             Provider: GitHub
-          OutputArtifacts:
-          - Name: SiteSourceOutput
           Configuration:
             Owner: !Ref GitHubUser
             Repo: !Ref SiteGitHubRepo
             Branch: !Ref SiteGitHubBranch
             OAuthToken: !Ref GitHubToken
-          RunOrder: 1
+          OutputArtifacts:
+          - Name: SiteSourceOutput
         - InputArtifacts: []
           Name: EnviroSource
           ActionTypeId:
@@ -321,29 +298,27 @@ Resources:
             Owner: ThirdParty
             Version: '1'
             Provider: GitHub
-          OutputArtifacts:
-          - Name: EnviroSourceOutput
           Configuration:
             Owner: !Ref GitHubUser
             Repo: !Ref EnviroGitHubRepo
             Branch: !Ref EnviroGitHubBranch
             OAuthToken: !Ref GitHubToken
-          RunOrder: 1
+          OutputArtifacts:
+          - Name: EnviroSourceOutput
       - Name: Deploy
         Actions:
         - Name: SiteArtifact
           ActionTypeId:
-            Category: Build
+            Category: Deploy
             Owner: AWS
             Version: '1'
-            Provider: CodeBuild
+            Provider: S3
+          Configuration:
+            BucketName: !Ref SiteBucket
+            Extract: true
+            CannedACL: public-read
           InputArtifacts:
           - Name: SiteSourceOutput
-          OutputArtifacts:
-          - Name: SiteDeployOutput
-          Configuration:
-            ProjectName: !Ref CodeBuildDeploySite
-          RunOrder: 1
         - Name: EnviroArtifact
           ActionTypeId:
             Category: Build
@@ -356,7 +331,6 @@ Resources:
           - Name: EnviroDeployOutput
           Configuration:
             ProjectName: !Ref CodeBuildEnviro
-          RunOrder: 1
       ArtifactStore:
         Type: S3
         Location: !Ref PipelineBucket
