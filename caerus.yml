@@ -270,7 +270,7 @@ Resources:
                 - cat packaged.yaml
                 - sam deploy --template-file packaged.yaml --stack-name ${AWS::StackName}Enviro --capabilities CAPABILITY_IAM
       TimeoutInMinutes: 10
-  Pipeline:
+  SitePipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       RoleArn: !GetAtt CodePipelineRole.Arn
@@ -291,6 +291,30 @@ Resources:
             OAuthToken: !Ref GitHubToken
           OutputArtifacts:
           - Name: SiteSourceOutput
+      - Name: Deploy
+        Actions:
+        - Name: SiteArtifact
+          ActionTypeId:
+            Category: Deploy
+            Owner: AWS
+            Version: '1'
+            Provider: S3
+          Configuration:
+            BucketName: !Ref SiteBucket
+            Extract: true
+            CannedACL: public-read
+          InputArtifacts:
+          - Name: SiteSourceOutput
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineBucket
+  EnviroPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      Stages:
+      - Name: Source
+        Actions:
         - InputArtifacts: []
           Name: EnviroSource
           ActionTypeId:
@@ -307,18 +331,6 @@ Resources:
           - Name: EnviroSourceOutput
       - Name: Deploy
         Actions:
-        - Name: SiteArtifact
-          ActionTypeId:
-            Category: Deploy
-            Owner: AWS
-            Version: '1'
-            Provider: S3
-          Configuration:
-            BucketName: !Ref SiteBucket
-            Extract: true
-            CannedACL: public-read
-          InputArtifacts:
-          - Name: SiteSourceOutput
         - Name: EnviroArtifact
           ActionTypeId:
             Category: Build
@@ -352,8 +364,11 @@ Resources:
       Groups:
       - !Ref DynamicDNSGroup
 Outputs:
-  PipelineUrl:
-    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}
+  SitePipelineUrl:
+    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${SitePipeline}
+    Description: CodePipeline URL
+  EnviroPipelineUrl:
+    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${EnviroPipeline}
     Description: CodePipeline URL
   SiteUrl:
     Value: !GetAtt [SiteBucket, WebsiteURL]
